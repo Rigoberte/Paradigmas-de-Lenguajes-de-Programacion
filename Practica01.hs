@@ -13,8 +13,8 @@ max2_curried x y
     | x >= y = x
     | otherwise = y
 
-normaVectorial_curried:: Float -> Float -> Float
-normaVectorial_curried x y = sqrt (x**2 + y**2)
+normaVectorialCurried:: Float -> Float -> Float
+normaVectorialCurried x y = sqrt (x**2 + y**2)
 
 ejercicio01 :: IO ()
 ejercicio01 = do
@@ -219,13 +219,160 @@ ejercicio07 = do
 
     print "mapDoble2 sumaTupla [1, 2, 3, 4] [1, 2, 3]"
     print (mapDoble2 sumaTupla [1, 2, 3, 4] [1, 2, 3])
-    
+
+foldNat :: (Integer -> b -> b) -> b -> Integer -> b
+foldNat _ z 0 = z
+foldNat f z n
+    | n > 0 = f n (foldNat f z (n-1))
+    | otherwise = error "Undefined"
+
+potencia:: Integer -> Integer -> [Integer]
+potencia p = foldNat (\x acc -> x^p : acc) []
+
 {-
 Ejercicio 09
 -}
 ejercicio09 :: IO()
 ejercicio09 = do
-    print "FoldNat"
+    print "foldNat (+) 0 10"
+    print (foldNat (+) 0 10)
+
+    print "foldNat (+) 2 2"
+    print (foldNat (+) 2 2)
+
+    print "foldNat (*) 1 4"
+    print (foldNat (*) 1 4)
+
+    print "foldNat (*) 0 1"
+    print (foldNat (*) 0 1)
+
+    print "foldNat (:) [] 10"
+    print (foldNat (:) [] 10)
+
+    print "potencia 1 10"
+    print (potencia 1 10)
+
+    print "potencia 2 10"
+    print (potencia 2 10)
+
+{-
+Ejercicio 12
+-}
+
+data AB a = 
+    Nil 
+    | Bin (AB a) a (AB a)
+    deriving (Eq, Show)
+
+foldAB :: b -> (b -> a -> b -> b) -> AB a -> b
+foldAB z f Nil = z
+foldAB z f (Bin i r d) = f (foldAB z f i) r (foldAB z f d)
+
+recAB :: b -> (AB a -> b -> a -> AB a -> b -> b) -> AB a -> b
+recAB z f Nil = z
+recAB z f (Bin i r d) = f i (recAB z f i) r d (recAB z f d)
+
+esNil :: AB a -> Bool
+esNil t = case t of
+    Nil -> True
+    _ -> False
+
+altura :: AB a -> Int
+altura = foldAB 0 (\li _ ld -> 1 + max li ld)
+
+cantNodos :: AB a -> Int
+cantNodos = foldAB 0 (\li _ ld -> 1 + li + ld)
+
+raiz :: AB a -> a
+raiz (Bin _ v _) = v
+
+mejorSegunAB :: (a -> a -> Bool) -> AB a -> Maybe a
+mejorSegunAB f = foldAB Nothing g
+  where
+    g Nothing  x Nothing  = Just x
+    g (Just l) x Nothing  = Just (if f l x then l else x)
+    g Nothing  x (Just r) = Just (if f r x then r else x)
+    g (Just l) x (Just r) =
+      let mejorIzq = if f l x then l else x
+      in Just (if f r mejorIzq then r else mejorIzq)
+
+{-
+esABB :: Ord a => AB a -> Bool
+esABB = foldAB Nothing g
+  where
+    g :: Maybe (a,a,Bool) -> a -> Maybe (a,a,Bool) -> Maybe (a,a,Bool)
+    g ml x mr =
+      let okL = maybe True (\(_,maxL,ok) -> ok && maxL <= x) ml
+          okR = maybe True (\(minR,_,ok) -> ok && x <= minR) mr
+          minV = maybe x (\(minL,_,_) -> minL) ml
+          maxV = maybe x (\(_,maxR,_) -> maxR) mr
+      in Just (minV, maxV, okL && okR)
+-}
+
+ejercicio12 :: IO()
+ejercicio12 = do
+    print "esNil Nil"
+    print (esNil Nil)
+
+    print "esNil (Bin (Bin Nil 1 Nil) 10 Nil)"
+    print (esNil (Bin (Bin Nil 1 Nil) 10 Nil))
+
+    print "altura Nil"
+    print (altura Nil)
+
+    print "altura (Bin (Bin Nil 1 Nil) 10 Nil)"
+    print (altura (Bin (Bin Nil 1 Nil) 10 Nil))
+
+    print "cantNodos Nil"
+    print (cantNodos Nil)
+
+    print "cantNodos (Bin (Bin Nil 1 Nil) 10 Nil)"
+    print (cantNodos (Bin (Bin Nil 1 Nil) 10 Nil))
+
+    print "mejorSegunAB (>) (Bin (Bin Nil 5 Nil) 3 (Bin Nil 8 Nil)"
+    print (mejorSegunAB (>) (Bin (Bin Nil 5 Nil) 3 (Bin Nil 8 Nil)))
+
+    print "mejorSegunAB (<) (Bin (Bin Nil 5 Nil) 3 (Bin Nil 8 Nil)"
+    print (mejorSegunAB (<) (Bin (Bin Nil 5 Nil) 3 (Bin Nil 8 Nil)))
+
+
+data RoseTree a = Node a [RoseTree a]
+    deriving (Eq, Show)
+
+foldRoseTree :: (a -> [b] -> b) -> RoseTree a -> b
+foldRoseTree f (Node r xs) = f r (map (foldRoseTree f) xs)
+
+hojas :: RoseTree a -> [a]
+hojas = foldRoseTree f
+    where
+        f x [] = [x]
+        f x xs = concat xs
+
+distancia :: RoseTree a -> [Int]
+distancia = foldRoseTree f
+    where
+        f _ [] = [1]
+        f _ xs = map (+1) (concat xs)
+
+alturaRoseTree :: RoseTree a -> Int
+alturaRoseTree t = mejorSegun (>) (distancia t)
+
+ejercicio15 :: IO()
+ejercicio15 = do
+    print "hojas (Node 1 [Node 2 [], Node 3 [Node 4 []], Node 5 []])"
+    print (hojas (Node 1 [Node 2 [], Node 3 [Node 4 []], Node 5 []]))
+
+    print "distancia (Node 1 [Node 2 [], Node 3 [Node 4 []], Node 5 []])"
+    print (distancia (Node 1 [Node 2 [], Node 3 [Node 4 []], Node 5 []]))
+
+    print "distancia (Node 2 [])"
+    print (distancia (Node 2 []))
+
+    print "alturaRoseTree (Node 1 [Node 2 [], Node 3 [Node 4 []], Node 5 []])"
+    print (alturaRoseTree (Node 1 [Node 2 [], Node 3 [Node 4 []], Node 5 []]))
+
+    print "alturaRoseTree (Node 2 [])"
+    print (alturaRoseTree (Node 2 []))
 
 -- Ejemplo de uso e impresión en consola
 main :: IO ()
@@ -235,4 +382,6 @@ main = do
     --ejercicio03
     --ejercicio06
     --ejercicio07
-    ejercicio09
+    --ejercicio09
+    --ejercicio12
+    ejercicio15
